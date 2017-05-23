@@ -1,0 +1,100 @@
+- signed_post = field.presigned_post
+
+= javascript_tag do
+  :plain
+    #{field.name}Uploader = {
+      _init: function() {
+        $('##{field.name}-file-selector').on('change', this.uploadToS3);
+      },
+      uploadToS3: function(){
+        var url = '#{signed_post.url}',
+            data = new FormData(),
+            file = $(this)[0].files[0];
+
+        $('.s3-fields input[type=hidden]', #{field.name}Uploader.uploaderWrapper).each(function(){
+          input = $(this)[0];
+          data.append(input.name, input.value);
+        });
+
+        data.append('file', file);
+
+        #{field.name}Uploader.toggleProgressBar();
+
+        $.ajax({
+          url: url,
+          type: 'post',
+          data: data,
+          cache: false,
+          processData: false,
+          contentType: false,
+          dataType: 'json',
+          complete: function(res, status) {
+            #{field.name}Uploader.toggleSuccessUpload(res.getResponseHeader('Location'));
+          },
+          xhr: #{field.name}Uploader.customXhr
+        });
+      },
+      uploaderWrapper: '.s3-uploader-#{field.name}',
+      toggleProgressBar: function(){
+        $('.progress', #{field.name}Uploader.uploaderWrapper).show();
+        $('.help', #{field.name}Uploader.uploaderWrapper).hide();
+        $('input[type=file]', #{field.name}Uploader.uploaderWrapper).hide();
+        $('button.upload-content', #{field.name}Uploader.uploaderWrapper).hide();
+      },
+      toggleSuccessUpload: function(url){
+        $('input.uploaded-file-url', #{field.name}Uploader.uploaderWrapper).val(url);
+        $('.progress', #{field.name}Uploader.uploaderWrapper).hide();
+        var video = $('<video />', {
+          src: url,
+          type: 'video/mp4',
+          width: 200,
+          controls: true
+        });
+        $('input[type=file]', #{field.name}Uploader.uploaderWrapper).remove();
+        video.appendTo($('.success', #{field.name}Uploader.uploaderWrapper));
+        $('.success', #{field.name}Uploader.uploaderWrapper).show();
+      },
+      customXhr: function() {
+        var xhr = new window.XMLHttpRequest();
+        xhr.upload.addEventListener("progress", function (evt) {
+          if (evt.lengthComputable) {
+            var percentComplete = evt.loaded / evt.total;
+            $('.progress-bar', #{field.name}Uploader.uploaderWrapper).css({
+              width: percentComplete * 100 + '%'
+            });
+            if (percentComplete === 1) {
+              $('.progress-bar', #{field.name}Uploader.uploaderWrapper).hide()
+            }
+          }
+        }, false);
+        xhr.addEventListener("progress", function (evt) {
+          if (evt.lengthComputable) {
+            var percentComplete = evt.loaded / evt.total;
+            $('.progress', #{field.name}Uploader.uploaderWrapper).css({
+                width: percentComplete * 100 + '%'
+            });
+          }
+        }, false);
+
+        return xhr;
+      }
+    };
+
+.s3-uploader-wrapper{ class: "s3-uploader-#{field.name}" }
+  .s3-fields
+    - signed_post.fields.each_key do |key|
+      %input{ type: 'hidden', name: key, value: signed_post.fields[key] }
+    %input{ type: 'hidden', name: 'Content-Type', value: 'video/mp4' }
+
+  .file-selector
+    %label Choose the asset to upload
+    %input{ type: 'file', name: "#{field.name}-file", id: "#{field.name}-file-selector" }
+    .progress{ style: 'display:none' }
+      .progress-bar.progress-bar-info{ role: 'progressbar', style:'width:50%' }
+        Uploading ... (please wait)
+    %p.help Assets will be uploaded to s3
+    .success{ style: 'display:none' }
+
+  = form.send :hidden_field, field.method_name, field.html_attributes.merge(class: 'uploaded-file-url')
+= javascript_tag do
+  $(document).ready(function(){ #{field.name}Uploader._init(); });
