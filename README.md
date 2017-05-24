@@ -2,7 +2,18 @@
 Short description and motivation.
 
 ## Usage
-How to use my plugin.
+
+- Add a new field to your model as string.
+- Configure the field on your rails_admin.rb initializer
+
+```
+field :your_field, :s3_file do
+  upload_path  "#{ENV['AWS_ENV']}/videos/" # mandatory
+  upload_extension 'mp4'                   # mandatory
+  upload_content_type 'video'              # Optional default video
+  upload_acl 'public-read'                 # Optional default public-read options
+end
+```
 
 ## Installation
 Add this line to your application's Gemfile:

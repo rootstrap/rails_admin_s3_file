@@ -13,13 +13,14 @@ module RailsAdmin
         class S3File < RailsAdmin::Config::Fields::Base
           RailsAdmin::Config::Fields::Types::register(self)
 
-          def initialize
+          def initialize(*args, &block)
             Aws.config.update(
               region: ENV['AWS_REGION'] || 'us-east-1',
               credentials: Aws::Credentials
                 .new(ENV['AWS_ACCESS_KEY_ID'], ENV['AWS_SECRET_ACCESS_KEY'])
             )
-            super
+
+            super *args, &block
           end
 
           register_instance_option(:partial) do
@@ -27,7 +28,7 @@ module RailsAdmin
     	    end
 
           register_instance_option(:upload_path) do
-            'uploads'
+            'rails_admin_s3_uploads'
     	    end
 
           register_instance_option(:upload_extension) do
@@ -43,7 +44,7 @@ module RailsAdmin
           end
 
           def upload_key
-            "#{upload_path}/#{SecureRandom.uuid}.#{upload_extension}"
+            @upload_key ||= "#{upload_path}/#{SecureRandom.uuid}.#{upload_extension}"
           end
 
           def s3_bucket
@@ -51,7 +52,7 @@ module RailsAdmin
           end
 
           def presigned_post
-            @bucket.presigned_post(
+            s3_bucket.presigned_post(
               key: upload_key,
               acl: upload_acl,
               content_type_starts_with: upload_content_type,
